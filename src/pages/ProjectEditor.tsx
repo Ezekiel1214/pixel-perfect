@@ -4,15 +4,90 @@ import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ChatInterface } from "@/components/editor/ChatInterface";
 import { LivePreview } from "@/components/editor/LivePreview";
+import { CodeView } from "@/components/editor/CodeView";
+import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { useProjectEditor } from "@/hooks/useProjectEditor";
+import { useContentHistory } from "@/hooks/useContentHistory";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { downloadAsHtml, downloadAsZip } from "@/lib/exportProject";
+import { useToast } from "@/hooks/use-toast";
+
+type ViewMode = "preview" | "code" | "split";
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { messages, content, isLoading, isSaving, projectName, sendMessage } = useProjectEditor(id || "");
+  const { messages, content, isLoading, isSaving, projectName, sendMessage, setContent } = useProjectEditor(id || "");
+  const { content: historyContent, setContent: setHistoryContent, undo, redo, canUndo, canRedo, resetHistory } = useContentHistory();
+  const [viewMode, setViewMode] = useState<ViewMode>("preview");
+  const { toast } = useToast();
+
+  // Sync content from project editor to history
+  useEffect(() => {
+    if (content && content !== historyContent) {
+      setHistoryContent(content);
+    }
+  }, [content]);
+
+  // Sync history content back to project editor when undo/redo
+  useEffect(() => {
+    if (historyContent !== content) {
+      setContent(historyContent);
+    }
+  }, [historyContent]);
+
+  // Initialize history when project loads
+  useEffect(() => {
+    if (content) {
+      resetHistory(content);
+    }
+  }, [projectName]); // Reset when project loads (projectName changes)
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+
+  const handleExport = useCallback((format: "html" | "zip") => {
+    if (!content) return;
+    
+    try {
+      if (format === "html") {
+        downloadAsHtml(content, projectName || "project");
+      } else {
+        downloadAsZip(content, projectName || "project");
+      }
+      toast({
+        title: "Export successful",
+        description: `Project exported as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "Could not export the project",
+      });
+    }
+  }, [content, projectName, toast]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -36,6 +111,26 @@ export default function ProjectEditor() {
     );
   }
 
+  const renderPreviewPanel = () => {
+    if (viewMode === "code") {
+      return <CodeView content={content} />;
+    }
+    if (viewMode === "split") {
+      return (
+        <ResizablePanelGroup direction="vertical">
+          <ResizablePanel defaultSize={60}>
+            <LivePreview content={content} />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={40}>
+            <CodeView content={content} />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      );
+    }
+    return <LivePreview content={content} />;
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
@@ -49,7 +144,17 @@ export default function ProjectEditor() {
             <p className="text-xs text-muted-foreground">AI Web Builder</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <EditorToolbar
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            onExport={handleExport}
+            hasContent={!!content}
+          />
           {isSaving && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Save className="h-3 w-3" />
@@ -73,7 +178,7 @@ export default function ProjectEditor() {
           <ResizableHandle withHandle />
           
           <ResizablePanel defaultSize={65}>
-            <LivePreview content={content} />
+            {renderPreviewPanel()}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
