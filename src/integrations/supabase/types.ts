@@ -16,9 +16,11 @@ export type Database = {
     Tables: {
       projects: {
         Row: {
+          content: string | null
           created_at: string
           description: string | null
           id: string
+          messages: Json | null
           name: string
           status: string
           thumbnail_url: string | null
@@ -26,9 +28,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          content?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          messages?: Json | null
           name: string
           status?: string
           thumbnail_url?: string | null
@@ -36,9 +40,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          content?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          messages?: Json | null
           name?: string
           status?: string
           thumbnail_url?: string | null

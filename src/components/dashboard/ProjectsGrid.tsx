@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Globe, Clock, MoreVertical, Loader2 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { useProjects, Project } from "@/hooks/useProjects";
 import { formatDistanceToNow } from "date-fns";
 
 export function ProjectsGrid() {
+  const navigate = useNavigate();
   const { projects, isLoading, createProject, deleteProject } = useProjects();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -77,7 +79,11 @@ export function ProjectsGrid() {
 
         {/* Project Cards */}
         {projects.map((project: Project) => (
-          <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group">
+          <Card 
+            key={project.id} 
+            className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+            onClick={() => navigate(`/project/${project.id}`)}
+          >
             <div className="relative h-36 overflow-hidden bg-muted">
               {project.thumbnail_url ? (
                 <img
