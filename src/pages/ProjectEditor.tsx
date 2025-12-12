@@ -1,17 +1,20 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ChatInterface } from "@/components/editor/ChatInterface";
 import { LivePreview } from "@/components/editor/LivePreview";
 import { CodeView } from "@/components/editor/CodeView";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
+import { AssetsSidebar } from "@/components/editor/AssetsSidebar";
 import { useProjectEditor } from "@/hooks/useProjectEditor";
 import { useContentHistory } from "@/hooks/useContentHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState, useCallback } from "react";
 import { downloadAsHtml, downloadAsZip } from "@/lib/exportProject";
 import { useToast } from "@/hooks/use-toast";
+import { Template } from "@/data/templates";
+import { ComponentItem } from "@/data/components";
 
 type ViewMode = "preview" | "code" | "split";
 
@@ -22,6 +25,7 @@ export default function ProjectEditor() {
   const { messages, content, isLoading, isSaving, projectName, sendMessage, setContent } = useProjectEditor(id || "");
   const { content: historyContent, setContent: setHistoryContent, undo, redo, canUndo, canRedo, resetHistory } = useContentHistory();
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
+  const [showAssets, setShowAssets] = useState(false);
   const { toast } = useToast();
 
   // Sync content from project editor to history
@@ -89,6 +93,44 @@ export default function ProjectEditor() {
     }
   }, [content, projectName, toast]);
 
+  const handleSelectTemplate = useCallback((template: Template) => {
+    setHistoryContent(template.html);
+    setContent(template.html);
+    toast({ title: "Template applied", description: `${template.name} template loaded` });
+  }, [setHistoryContent, setContent, toast]);
+
+  const handleInsertComponent = useCallback((component: ComponentItem) => {
+    if (!content) {
+      // If no content, wrap component in basic HTML structure
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Website</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900">
+${component.html}
+</body>
+</html>`;
+      setHistoryContent(html);
+      setContent(html);
+    } else {
+      // Insert before </body>
+      const newContent = content.replace("</body>", `${component.html}\n</body>`);
+      setHistoryContent(newContent);
+      setContent(newContent);
+    }
+    toast({ title: "Component added", description: `${component.name} inserted` });
+  }, [content, setHistoryContent, setContent, toast]);
+
+  const handleInsertImage = useCallback((url: string) => {
+    const imgTag = `<img src="${url}" alt="Uploaded image" class="max-w-full h-auto" />`;
+    navigator.clipboard.writeText(imgTag);
+    toast({ title: "Image tag copied", description: "Paste it in your code or ask AI to use it" });
+  }, [toast]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
@@ -144,7 +186,15 @@ export default function ProjectEditor() {
             <p className="text-xs text-muted-foreground">AI Web Builder</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showAssets ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowAssets(!showAssets)}
+          >
+            {showAssets ? <PanelRightClose className="h-4 w-4 mr-2" /> : <PanelRightOpen className="h-4 w-4 mr-2" />}
+            Assets
+          </Button>
           <EditorToolbar
             viewMode={viewMode}
             onViewModeChange={setViewMode}
@@ -177,9 +227,22 @@ export default function ProjectEditor() {
           
           <ResizableHandle withHandle />
           
-          <ResizablePanel defaultSize={65}>
+          <ResizablePanel defaultSize={showAssets ? 45 : 65}>
             {renderPreviewPanel()}
           </ResizablePanel>
+
+          {showAssets && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+                <AssetsSidebar
+                  onSelectTemplate={handleSelectTemplate}
+                  onInsertComponent={handleInsertComponent}
+                  onInsertImage={handleInsertImage}
+                />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
     </div>
