@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Save, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ArrowLeft, Loader2, Save, PanelRightClose, PanelRightOpen, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ChatInterface } from "@/components/editor/ChatInterface";
@@ -7,6 +7,7 @@ import { LivePreview } from "@/components/editor/LivePreview";
 import { CodeView } from "@/components/editor/CodeView";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { AssetsSidebar } from "@/components/editor/AssetsSidebar";
+import { PublishDialog } from "@/components/editor/PublishDialog";
 import { useProjectEditor } from "@/hooks/useProjectEditor";
 import { useContentHistory } from "@/hooks/useContentHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +27,7 @@ export default function ProjectEditor() {
   const { content: historyContent, setContent: setHistoryContent, undo, redo, canUndo, canRedo, resetHistory } = useContentHistory();
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [showAssets, setShowAssets] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const { toast } = useToast();
 
   // Sync content from project editor to history
@@ -205,6 +207,10 @@ ${component.html}
             onExport={handleExport}
             hasContent={!!content}
           />
+          <Button onClick={() => setShowPublish(true)} disabled={!content}>
+            <Globe className="h-4 w-4 mr-2" />
+            Publish
+          </Button>
           {isSaving && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Save className="h-3 w-3" />
@@ -213,6 +219,13 @@ ${component.html}
           )}
         </div>
       </header>
+
+      <PublishDialog
+        open={showPublish}
+        onOpenChange={setShowPublish}
+        projectId={id}
+        projectName={projectName || ""}
+      />
 
       {/* Editor Content */}
       <div className="flex-1 overflow-hidden">
