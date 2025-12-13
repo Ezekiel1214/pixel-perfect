@@ -8,6 +8,10 @@ import { CodeView } from "@/components/editor/CodeView";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { AssetsSidebar } from "@/components/editor/AssetsSidebar";
 import { PublishDialog } from "@/components/editor/PublishDialog";
+import { VersionHistoryDialog } from "@/components/editor/VersionHistoryDialog";
+import { TeamCollaborationDialog } from "@/components/editor/TeamCollaborationDialog";
+import { AnalyticsDialog } from "@/components/editor/AnalyticsDialog";
+import { CustomCodeDialog } from "@/components/editor/CustomCodeDialog";
 import { useProjectEditor } from "@/hooks/useProjectEditor";
 import { useContentHistory } from "@/hooks/useContentHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -133,6 +137,11 @@ ${component.html}
     toast({ title: "Image tag copied", description: "Paste it in your code or ask AI to use it" });
   }, [toast]);
 
+  const handleRestoreVersion = useCallback((restoredContent: string) => {
+    setHistoryContent(restoredContent);
+    setContent(restoredContent);
+  }, [setHistoryContent, setContent]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
@@ -197,6 +206,14 @@ ${component.html}
             {showAssets ? <PanelRightClose className="h-4 w-4 mr-2" /> : <PanelRightOpen className="h-4 w-4 mr-2" />}
             Assets
           </Button>
+          <VersionHistoryDialog
+            projectId={id}
+            currentContent={content || ""}
+            onRestore={handleRestoreVersion}
+          />
+          <TeamCollaborationDialog projectId={id} isOwner={true} />
+          <AnalyticsDialog projectId={id} />
+          <CustomCodeDialog projectId={id} />
           <EditorToolbar
             viewMode={viewMode}
             onViewModeChange={setViewMode}
