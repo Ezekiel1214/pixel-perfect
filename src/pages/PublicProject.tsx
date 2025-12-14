@@ -1,11 +1,13 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export default function PublicProject() {
   const { slug } = useParams<{ slug: string }>();
   const [content, setContent] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string>("Project");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +21,7 @@ export default function PublicProject() {
 
       const { data, error: fetchError } = await supabase
         .from("projects")
-        .select("id, content, name, is_public, custom_css, custom_js")
+        .select("id, content, name, is_public, custom_css, custom_js, description")
         .eq("slug", slug)
         .eq("is_public", true)
         .maybeSingle();
@@ -29,6 +31,8 @@ export default function PublicProject() {
       } else if (!data) {
         setError("Project not found or not public");
       } else {
+        setProjectName(data.name);
+        
         // Inject custom CSS and JS into content
         let finalContent = data.content || "";
         
@@ -91,19 +95,30 @@ export default function PublicProject() {
 
   if (error || !content) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-background text-foreground">
-        <h1 className="text-2xl font-bold mb-2">404</h1>
-        <p className="text-muted-foreground">{error || "Project not found"}</p>
-      </div>
+      <>
+        <Helmet>
+          <title>Project Not Found - AIWebBuilder Pro</title>
+        </Helmet>
+        <div className="h-screen flex flex-col items-center justify-center bg-background text-foreground">
+          <h1 className="text-2xl font-bold mb-2">404</h1>
+          <p className="text-muted-foreground">{error || "Project not found"}</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <iframe
-      srcDoc={content}
-      title="Published Project"
-      className="w-full h-screen border-0"
-      sandbox="allow-scripts allow-same-origin"
-    />
+    <>
+      <Helmet>
+        <title>{projectName} - Built with AIWebBuilder Pro</title>
+        <meta name="description" content={`View ${projectName}, a project built with AIWebBuilder Pro`} />
+      </Helmet>
+      <iframe
+        srcDoc={content}
+        title={projectName}
+        className="w-full h-screen border-0"
+        sandbox="allow-scripts allow-same-origin"
+      />
+    </>
   );
 }
