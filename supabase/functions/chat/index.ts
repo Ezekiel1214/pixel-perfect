@@ -25,10 +25,19 @@ const configuredAllowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .filter(Boolean);
 
 const allowAnyOrigin = configuredAllowedOrigins.includes("*");
-const allowedOrigins = configuredAllowedOrigins
-  .filter((origin) => origin !== "*")
-  .map((origin) => parseHttpOrigin(origin))
-  .filter((origin): origin is string => Boolean(origin));
+const concreteConfiguredOrigins = configuredAllowedOrigins.filter((origin) => origin !== "*");
+const allowedOrigins = Array.from(
+  new Set(
+    concreteConfiguredOrigins
+      .map((origin) => parseHttpOrigin(origin))
+      .filter((origin): origin is string => Boolean(origin)),
+  ),
+);
+const invalidConfiguredOrigins = concreteConfiguredOrigins.filter((origin) => !parseHttpOrigin(origin));
+
+if (invalidConfiguredOrigins.length > 0) {
+  console.warn("Ignoring invalid ALLOWED_ORIGINS entries:", invalidConfiguredOrigins.join(", "));
+}
 
 const isOriginAllowed = (origin: string | null) => {
   if (!origin) return true;
