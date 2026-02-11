@@ -43,6 +43,7 @@ supabase secrets set ALLOWED_ORIGINS=https://your-app.com,https://staging.your-a
 ```
 
 The chat function is JWT-protected (`verify_jwt = true`) and expects authenticated bearer tokens.
+If `ALLOWED_ORIGINS` does not include your exact frontend origin, chat calls will be rejected with `403 Origin not allowed`.
 
 ## Lovable workflow (if this repo is linked)
 

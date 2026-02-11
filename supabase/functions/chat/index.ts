@@ -5,8 +5,22 @@ const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const isOriginAllowed = (origin: string | null) => {
+  if (!origin) return true;
+  return allowedOrigins.includes(origin);
+};
+
 const getCorsHeaders = (origin: string | null) => {
-  const allowOrigin = origin && allowedOrigins.includes(origin) ? origin : "null";
+  if (!origin) {
+    return {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Vary": "Origin",
+    };
+  }
+
+  const allowOrigin = isOriginAllowed(origin) ? origin : "null";
 
   return {
     "Access-Control-Allow-Origin": allowOrigin,
@@ -21,7 +35,21 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === "OPTIONS") {
+    if (origin && !isOriginAllowed(origin)) {
+      return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (origin && !isOriginAllowed(origin)) {
+    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (req.method !== "POST") {
