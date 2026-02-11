@@ -1,13 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, "");
+
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);
 
 const isOriginAllowed = (origin: string | null) => {
   if (!origin) return true;
-  return allowedOrigins.includes(origin);
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (allowedOrigins.includes("*")) {
+    return true;
+  }
+
+  return allowedOrigins.includes(normalizedOrigin);
 };
 
 const getCorsHeaders = (origin: string | null) => {
@@ -33,6 +41,14 @@ const getCorsHeaders = (origin: string | null) => {
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
+
+  if (origin && allowedOrigins.length === 0) {
+    console.warn("ALLOWED_ORIGINS is not configured; rejecting browser-origin request", origin);
+    return new Response(JSON.stringify({ error: "Origin not allowed. Configure ALLOWED_ORIGINS." }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   if (req.method === "OPTIONS") {
     if (origin && !isOriginAllowed(origin)) {

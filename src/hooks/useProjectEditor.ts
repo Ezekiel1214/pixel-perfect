@@ -106,15 +106,17 @@ export function useProjectEditor(projectId: string) {
       if (!response.ok) {
         let errorMessage = "Failed to get AI response";
         const contentType = response.headers.get("content-type") || "";
+        const errorText = await response.text();
 
-        if (contentType.includes("application/json")) {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } else {
-          const errorText = await response.text();
-          if (errorText) {
+        if (contentType.includes("application/json") && errorText) {
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || errorMessage;
+          } catch {
             errorMessage = errorText;
           }
+        } else if (errorText) {
+          errorMessage = errorText;
         }
 
         throw new Error(errorMessage);
