@@ -32,7 +32,6 @@ npm run build
 npm run preview
 ```
 
-
 ## Supabase Edge Function secrets
 
 For `supabase/functions/chat`, configure:
@@ -48,7 +47,7 @@ If `ALLOWED_ORIGINS` does not include your exact frontend origin, chat calls wil
 ## Lovable workflow (if this repo is linked)
 
 1. Open the linked Lovable project.
-2. Prompt or edit in Lovable.
-3. Changes are committed back to this repository.
+1. Prompt or edit in Lovable.
+1. Changes are committed back to this repository.
 
 For complete architecture notes, Supabase function setup, release checklist, and security hardening priorities, use the runbook linked above.
