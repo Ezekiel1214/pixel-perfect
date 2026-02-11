@@ -1,29 +1,48 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const normalizeOrigin = (origin: string) => {
+const parseHttpOrigin = (origin: string): string | null => {
   const trimmedOrigin = origin.trim().replace(/\/+$/, "");
 
+  if (!trimmedOrigin) {
+    return null;
+  }
+
   try {
-    return new URL(trimmedOrigin).origin;
+    const parsed = new URL(trimmedOrigin);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return parsed.origin;
   } catch {
-    return trimmedOrigin;
+    return null;
   }
 };
 
-const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+const configuredAllowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .split(",")
-  .map((origin) => normalizeOrigin(origin))
+  .map((origin) => origin.trim())
   .filter(Boolean);
+
+const allowAnyOrigin = configuredAllowedOrigins.includes("*");
+const allowedOrigins = configuredAllowedOrigins
+  .filter((origin) => origin !== "*")
+  .map((origin) => parseHttpOrigin(origin))
+  .filter((origin): origin is string => Boolean(origin));
 
 const isOriginAllowed = (origin: string | null) => {
   if (!origin) return true;
 
-  const normalizedOrigin = normalizeOrigin(origin);
-  if (allowedOrigins.includes("*")) {
+  if (allowAnyOrigin) {
     return true;
   }
 
-  return allowedOrigins.includes(normalizedOrigin);
+  const parsedOrigin = parseHttpOrigin(origin);
+  if (!parsedOrigin) {
+    return false;
+  }
+
+  return allowedOrigins.includes(parsedOrigin);
 };
 
 const getCorsHeaders = (origin: string | null) => {
@@ -38,7 +57,7 @@ const getCorsHeaders = (origin: string | null) => {
   }
 
   const allowOrigin = isOriginAllowed(origin)
-    ? (allowedOrigins.includes("*") ? "*" : normalizeOrigin(origin))
+    ? (allowAnyOrigin ? "*" : parseHttpOrigin(origin) ?? "null")
     : "null";
 
   return {
@@ -60,7 +79,7 @@ serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
-  if (origin && allowedOrigins.length === 0) {
+  if (origin && !allowAnyOrigin && allowedOrigins.length === 0) {
     console.warn("ALLOWED_ORIGINS is not configured; rejecting browser-origin request", origin);
     return jsonResponse(corsHeaders, 403, "Origin not allowed. Configure ALLOWED_ORIGINS.");
   }
