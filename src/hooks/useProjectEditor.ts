@@ -104,19 +104,23 @@ export function useProjectEditor(projectId: string) {
       });
 
       if (!response.ok) {
-        let errorMessage = "Failed to get AI response";
+        let errorMessage = `Failed to get AI response (${response.status})`;
         const contentType = response.headers.get("content-type") || "";
         const errorText = await response.text();
 
         if (contentType.includes("application/json") && errorText) {
           try {
             const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error || errorMessage;
+            errorMessage = errorData.error || errorData.message || errorMessage;
           } catch {
             errorMessage = errorText;
           }
         } else if (errorText) {
           errorMessage = errorText;
+        }
+
+        if (response.status === 401) {
+          errorMessage = "Your session expired. Please sign in again.";
         }
 
         throw new Error(errorMessage);

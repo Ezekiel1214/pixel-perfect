@@ -1,6 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, "");
+const normalizeOrigin = (origin: string) => {
+  const trimmedOrigin = origin.trim().replace(/\/+$/, "");
+
+  try {
+    return new URL(trimmedOrigin).origin;
+  } catch {
+    return trimmedOrigin;
+  }
+};
 
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .split(",")
@@ -24,19 +32,29 @@ const getCorsHeaders = (origin: string | null) => {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
     };
   }
 
-  const allowOrigin = isOriginAllowed(origin) ? origin : "null";
+  const allowOrigin = isOriginAllowed(origin)
+    ? (allowedOrigins.includes("*") ? "*" : normalizeOrigin(origin))
+    : "null";
 
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
 };
+
+const jsonResponse = (corsHeaders: Record<string, string>, status: number, error: string) =>
+  new Response(JSON.stringify({ error }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -44,35 +62,19 @@ serve(async (req) => {
 
   if (origin && allowedOrigins.length === 0) {
     console.warn("ALLOWED_ORIGINS is not configured; rejecting browser-origin request", origin);
-    return new Response(JSON.stringify({ error: "Origin not allowed. Configure ALLOWED_ORIGINS." }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  if (req.method === "OPTIONS") {
-    if (origin && !isOriginAllowed(origin)) {
-      return new Response(JSON.stringify({ error: "Origin not allowed" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(null, { headers: corsHeaders });
+    return jsonResponse(corsHeaders, 403, "Origin not allowed. Configure ALLOWED_ORIGINS.");
   }
 
   if (origin && !isOriginAllowed(origin)) {
-    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(corsHeaders, 403, "Origin not allowed");
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(corsHeaders, 405, "Method not allowed");
   }
 
   try {
@@ -84,10 +86,7 @@ serve(async (req) => {
     }
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "messages must be a non-empty array" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse(corsHeaders, 400, "messages must be a non-empty array");
     }
 
     console.log("Processing chat request for project:", projectName);
@@ -128,22 +127,13 @@ If the user asks questions or wants modifications, update the code accordingly a
       console.error("AI gateway error:", response.status, errorText);
 
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonResponse(corsHeaders, 429, "Rate limit exceeded. Please try again later.");
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits to continue." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonResponse(corsHeaders, 402, "Payment required. Please add credits to continue.");
       }
 
-      return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse(corsHeaders, 500, "AI service error");
     }
 
     console.log("Streaming response back to client");
@@ -153,9 +143,6 @@ If the user asks questions or wants modifications, update the code accordingly a
     });
   } catch (error) {
     console.error("Chat function error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(corsHeaders, 500, error instanceof Error ? error.message : "Unknown error");
   }
 });
