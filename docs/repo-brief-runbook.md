@@ -1,199 +1,269 @@
 # Pixel Perfect Repository Brief + Runbook
 
-## 1) What this repository is
+## 1) Executive brief
 
-`pixel-perfect` is a Vite + React + TypeScript web application for creating, editing, and publishing AI-generated web projects. The app has three major experiences:
+`pixel-perfect` is a full-stack web app centered on AI-assisted website generation/editing.
 
-- **Marketing/Landing** (`/`): product positioning and conversion pages.
-- **Authenticated Dashboard** (`/dashboard`): project management for signed-in users.
-- **Project Editor + Public Viewer** (`/project/:id`, `/p/:slug`): AI chat-driven editing with live preview and optional public publishing.
+At runtime, it combines:
 
-The frontend uses Supabase for authentication, database access, and storage. A Supabase Edge Function (`functions/chat`) proxies AI chat-completion requests to Lovable's AI gateway using a server-side API key.
+- **React SPA frontend** (Vite + TypeScript + Tailwind + shadcn UI)
+- **Supabase backend services** (Auth, Postgres, Storage, Edge Functions)
+- **Lovable AI gateway integration** via `supabase/functions/chat`
 
----
+Core user journeys:
 
-## 2) Project structure
-
-### Top-level layout
-
-- `src/`: application source code (pages, hooks, components, data, integrations).
-- `supabase/`: project-level Supabase config, SQL migrations, and Edge Functions.
-- `.github/workflows/`: CI automation.
-- `public/`: static assets.
-
-### Frontend runtime architecture
-
-- **Routing and providers** are composed in `src/App.tsx` with:
-  - `HelmetProvider` for SEO/head tags.
-  - `QueryClientProvider` for TanStack Query caching.
-  - `AuthProvider` for Supabase auth state.
-  - `BrowserRouter` route map.
-- **Pages** under `src/pages/` split responsibilities:
-  - `Index.tsx` (landing)
-  - `Auth.tsx`, password recovery/update pages
-  - `Dashboard.tsx`
-  - `ProjectEditor.tsx`
-  - `PublicProject.tsx`
-
-### Feature modules
-
-- `src/components/landing/`: marketing sections.
-- `src/components/dashboard/`: workspace navigation and project listing.
-- `src/components/editor/`: chat, preview, code, publish dialog, analytics dialog, team dialog, assets, etc.
-- `src/hooks/`: auth/session logic, project data workflows, undo/redo history.
-- `src/integrations/supabase/`: generated typings and the singleton client.
-
-### Backend/Supabase layout
-
-- `supabase/migrations/*.sql`: schema, indexes, and RLS policies.
-- `supabase/functions/chat/index.ts`: AI gateway proxy function.
-- `supabase/config.toml`: Supabase local config for functions.
+1. Discover product on `/` (landing pages).
+2. Authenticate and manage projects on `/dashboard`.
+3. Build/edit in `/project/:id` using chat + preview + code views.
+4. Publish and share on `/p/:slug`.
 
 ---
 
-## 3) How to run locally
+## 2) System map and repository structure
 
-### Prerequisites
+## Top-level directories
 
-- Node.js 18+ (LTS recommended).
-- npm (bundled with Node).
-- Optional for backend workflows: Supabase CLI.
+| Path | Purpose |
+|---|---|
+| `src/` | Frontend application code. |
+| `supabase/` | DB migrations, edge function code, Supabase config. |
+| `.github/workflows/` | CI workflow definitions. |
+| `public/` | Static assets served by Vite. |
 
-### Install and run frontend
+## Frontend organization (`src/`)
+
+| Path | Purpose |
+|---|---|
+| `pages/` | Route-level screens (`Index`, `Dashboard`, `ProjectEditor`, `PublicProject`, auth flows). |
+| `components/landing/` | Marketing/landing sections. |
+| `components/dashboard/` | Dashboard shell and project grid. |
+| `components/editor/` | Editor/chat/publish/assets/version/team/analytics dialogs. |
+| `hooks/` | Auth, editor state, content history, project loading/mutations. |
+| `integrations/supabase/` | Supabase browser client and generated types. |
+| `lib/` | Utilities and export helpers. |
+
+## Backend/Supabase organization
+
+| Path | Purpose |
+|---|---|
+| `supabase/migrations/*.sql` | Table definitions, indexes, RLS policies, helper functions. |
+| `supabase/functions/chat/index.ts` | Edge Function proxying chat completion requests to Lovable AI gateway. |
+| `supabase/config.toml` | Project function config (including `verify_jwt`). |
+
+---
+
+## 3) Local development runbook
+
+## Prerequisites
+
+- Node.js 18+ (LTS recommended)
+- npm
+- Optional: Supabase CLI (for local function/database workflows)
+
+## First-time setup
 
 ```bash
 npm install
+cp .env.example .env.local  # if you maintain an example file
+```
+
+If `.env.example` does not exist, create `.env.local` manually:
+
+```bash
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<your-publishable-key>
+```
+
+## Run the frontend
+
+```bash
 npm run dev
 ```
 
-By default Vite serves locally at `http://localhost:5173`.
+Default URL: `http://localhost:5173`
 
-### Production build and preview
+## Build, lint, and preview
 
 ```bash
+npm run lint
 npm run build
 npm run preview
 ```
 
-### Quality checks
-
-```bash
-npm run lint
-```
-
-### Optional: local Supabase function workflow
-
-If using local Supabase CLI development:
+## Optional local Supabase workflow
 
 ```bash
 supabase start
 supabase functions serve chat
 ```
 
-Then point the frontend to your local Supabase project URL/keys.
+If using local Supabase, ensure frontend env vars point to local project credentials.
 
 ---
 
-## 4) Configuration and environment
+## 4) Configuration: Supabase + Lovable
 
-### Frontend environment variables
+## Frontend env vars
 
-Create `.env.local` (or `.env`) in the repo root:
+Consumed by `src/integrations/supabase/client.ts`:
 
-```bash
-VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<your-anon-or-publishable-key>
-```
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-These are read by `src/integrations/supabase/client.ts` when creating the browser client.
+## Edge Function secret
 
-### Supabase Edge Function secret
+`supabase/functions/chat/index.ts` requires:
 
-`supabase/functions/chat/index.ts` expects:
+- `LOVABLE_API_KEY`
+- `ALLOWED_ORIGINS` (comma-separated allowlist of trusted web origins)
 
-- `LOVABLE_API_KEY` (server-side secret)
-
-Set it in Supabase project secrets:
+Set in Supabase secrets:
 
 ```bash
 supabase secrets set LOVABLE_API_KEY=<value> --project-ref <project-ref>
+supabase secrets set ALLOWED_ORIGINS=https://your-app.com,https://staging.your-app.com --project-ref <project-ref>
 ```
 
-### Lovable integration notes
+## Deployment note
 
-- The default README flow assumes this repo is connected to a Lovable project.
-- Deploy/publish can be initiated from Lovable UI once project linkage and environment values are valid.
+Supabase Edge Function deploy command:
 
----
-
-## 5) Security posture and production hardening (prioritized)
-
-Below are the highest-value hardening actions to execute before production rollout.
-
-### P0 (Critical)
-
-1. **Require JWT verification on the `chat` function**  
-   `supabase/config.toml` currently sets `verify_jwt = false` for `functions.chat`, allowing unauthenticated access. Set this to `true` and enforce user auth/authorization checks in-function.
-
-2. **Restrict CORS on the chat function**  
-   `Access-Control-Allow-Origin` is currently `*`. Replace with an allowlist of trusted frontend origins per environment.
-
-3. **Protect analytics update policy**  
-   The `project_analytics` update policy currently allows `USING (true)` and `WITH CHECK (true)`, permitting broad writes. Restrict to controlled pathways (RPC/function with checks, owner/member permissions, or signed-token gate).
-
-### P1 (High)
-
-4. **Harden custom JS/CSS publication path**  
-   Public projects inject `custom_css` and `custom_js` into rendered HTML. Add sanitization/validation and CSP strategy to reduce XSS risk for viewer contexts.
-
-5. **Implement basic rate limiting / abuse controls**  
-   Add throttling for chat requests and auth endpoints to reduce token abuse and brute-force behavior.
-
-6. **Review storage bucket exposure**  
-   `project-assets` is publicly readable by policy. Confirm this is intentional for all assets; otherwise split private vs public asset buckets.
-
-### P2 (Medium)
-
-7. **Replace/repair CI workflow**  
-   Existing workflow runs `npx webpack` even though this repo is Vite-based. Switch CI to `npm run lint && npm run build`.
-
-8. **Add observability and runbook alerts**  
-   Capture function error rates, 429/402 responses, and auth anomalies; document paging/escalation thresholds.
-
-9. **Document backup/recovery SOP**  
-   Define migration rollback strategy, data backup cadence, and incident ownership.
+```bash
+supabase functions deploy chat --project-ref <project-ref>
+```
 
 ---
 
-## 6) Operations runbook
+## 5) Data model and access-control summary
 
-### Local development startup checklist
+## Primary tables
 
-1. Install dependencies (`npm install`).
-2. Configure `.env.local` with Supabase URL and publishable key.
-3. Run `npm run dev`.
-4. Verify auth flow (`/auth`), dashboard (`/dashboard`), and editor route (`/project/:id`).
+- `public.projects`: project metadata + AI content + publish fields + custom CSS/JS.
+- `public.project_versions`: version history snapshots.
+- `public.project_members`: project collaborators and role enum.
+- `public.project_analytics`: basic per-project view counters.
 
-### Release checklist
+## RLS model (high-level)
 
-1. Run lint and production build.
-2. Confirm Supabase migrations are applied in target env.
-3. Confirm `LOVABLE_API_KEY` exists in secrets.
-4. Confirm `functions.chat` JWT + CORS settings are production-safe.
-5. Smoke-test publish flow and public slug route (`/p/:slug`).
+- Owner-scoped access for core project CRUD.
+- Helper functions `has_project_access` / `can_edit_project` used for versions + collaboration gates.
+- Public-read policy for published projects (`is_public = true`).
 
-### Incident quick triage
+## Storage
 
-- **Auth failures**: validate Supabase URL/key envs, auth provider health, redirect URLs.
-- **Chat failures**: inspect function logs, verify `LOVABLE_API_KEY`, check upstream 402/429 volume.
-- **Public page issues**: verify `is_public=true`, slug uniqueness, and content/custom script integrity.
+- Bucket `project-assets` exists.
+- Policies allow owner-folder scoped writes/deletes.
+- Public read policy exists for all bucket objects (verify this business decision).
 
 ---
 
-## 7) Suggested next steps
+## 6) Production hardening plan (prioritized)
 
-1. Execute P0 hardening items before external launch.
-2. Update CI workflow to Vite-native checks.
-3. Add environment-specific config docs (`dev/staging/prod` matrix).
-4. Add lightweight smoke tests for key user journeys.
-5. Maintain this runbook in-repo and require updates for major infra/auth changes.
+### Current implementation status
+
+- ✅ `functions.chat` now enforces JWT (`verify_jwt = true`).
+- ✅ Frontend chat requests now send the signed-in user's access token instead of the public key.
+- ✅ Chat CORS now uses an `ALLOWED_ORIGINS` allowlist secret instead of wildcard `*`.
+
+
+## P0 — critical before broad production exposure
+
+1. **Maintain JWT verification for chat function**
+   - Implemented: `[functions.chat] verify_jwt = true`.
+   - Next action: keep token validation in place and add explicit auth/claim checks if role-level authorization is introduced.
+
+2. **Maintain strict CORS allowlist**
+   - Implemented: origin matching via `ALLOWED_ORIGINS`.
+   - Next action: keep allowlist environment-specific (`dev/staging/prod`) and review regularly.
+
+3. **Constrain analytics update writes**
+   - Current `project_analytics` update policy allows unrestricted updates (`USING (true)` / `WITH CHECK (true)`).
+   - Action: route increments through secured RPC or restrict update permissions to trusted contexts.
+
+## P1 — high priority
+
+4. **Sanitize/validate custom CSS/JS execution path**
+   - Public viewer injects `custom_css` / `custom_js` into rendered content.
+   - Action: add sanitization + content policies + optional feature flag for custom JS.
+
+5. **Add abuse controls / throttling**
+   - Protect chat function and auth endpoints from excessive request volume.
+
+6. **Review public storage policy scope**
+   - Evaluate splitting private and public assets into separate buckets.
+
+## P2 — medium priority
+
+7. **Fix CI workflow mismatch**
+   - Current workflow invokes `npx webpack` although project builds with Vite.
+   - Action: change CI to `npm ci && npm run lint && npm run build`.
+
+8. **Observability + alerts**
+   - Instrument edge-function failures, auth anomalies, and AI provider 402/429 spikes.
+
+9. **Backup and incident SOPs**
+   - Define backup cadence, restore runbook, migration rollback process, and ownership.
+
+---
+
+## 7) Operations checklists
+
+## Daily developer checklist
+
+1. Pull latest `main` and install deps if lockfile changed.
+2. Confirm env vars are present.
+3. Run `npm run dev` and verify key routes load.
+4. Run `npm run build` before opening PR.
+
+## Pre-release checklist
+
+1. Run lint/build successfully (or document known pre-existing lint debt).
+2. Confirm latest Supabase migrations are applied to target env.
+3. Confirm `LOVABLE_API_KEY` exists in target env secrets.
+4. Verify `chat` function JWT + CORS config for target environment.
+5. Smoke test:
+   - sign-in / sign-out
+   - create/edit/save project
+   - publish project
+   - open `/p/:slug` public page
+
+## Incident triage checklist
+
+- **Auth failures:** validate Supabase URL/key, auth redirect URLs, and provider status.
+- **Chat failures:** inspect edge-function logs, verify `LOVABLE_API_KEY`, inspect 402/429 rate.
+- **Public rendering issues:** validate publish flags/slug, inspect injected custom CSS/JS, check content integrity.
+- **Asset issues:** verify bucket policies and object paths (`<user-id>/...`).
+
+---
+
+## 8) 30-60-90 day implementation roadmap
+
+## 0–30 days
+
+- Complete all P0 hardening actions.
+- Correct CI workflow to Vite-native commands.
+- Add explicit `dev/staging/prod` configuration matrix document.
+
+## 31–60 days
+
+- Add smoke/E2E coverage for core journeys.
+- Add structured logging + alert thresholds for function/auth errors.
+- Add security review for custom script execution path.
+
+## 61–90 days
+
+- Introduce finer-grained analytics model and secured write pathways.
+- Add operational SLOs and on-call expectations.
+- Run production readiness review with rollback drill.
+
+---
+
+## 9) Ownership notes
+
+To keep this runbook useful, update it whenever any of the following change:
+
+- Authentication flow or redirect behavior
+- Supabase policy/function configuration
+- Deployment process
+- Security controls (JWT/CORS/rate limits)
+- CI pipeline commands or release policy

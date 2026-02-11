@@ -83,11 +83,19 @@ export function useProjectEditor(projectId: string) {
     let assistantContent = "";
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("You must be signed in to use AI chat.");
+      }
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ 
           messages: updatedMessages,
@@ -96,8 +104,26 @@ export function useProjectEditor(projectId: string) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to get AI response");
+        let errorMessage = `Failed to get AI response (${response.status})`;
+        const contentType = response.headers.get("content-type") || "";
+        const errorText = await response.text();
+
+        if (contentType.includes("application/json") && errorText) {
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            errorMessage = errorText;
+          }
+        } else if (errorText) {
+          errorMessage = errorText;
+        }
+
+        if (response.status === 401) {
+          errorMessage = "Your session expired. Please sign in again.";
+        }
+
+        throw new Error(errorMessage);
       }
 
       if (!response.body) {
@@ -107,8 +133,9 @@ export function useProjectEditor(projectId: string) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let streamDone = false;
 
-      while (true) {
+      while (!streamDone) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -124,7 +151,10 @@ export function useProjectEditor(projectId: string) {
           if (!line.startsWith("data: ")) continue;
 
           const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
+          if (jsonStr === "[DONE]") {
+            streamDone = true;
+            break;
+          }
 
           try {
             const parsed = JSON.parse(jsonStr);
