@@ -1,27 +1,55 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowOrigin = origin && allowedOrigins.includes(origin) ? origin : "null";
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
     const { messages, projectName } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "messages must be a non-empty array" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Processing chat request for project:", projectName);
     console.log("Messages count:", messages.length);
 
-    const systemPrompt = `You are an expert web developer AI assistant for "${projectName || 'a website'}". Your job is to help users build beautiful, modern websites.
+    const systemPrompt = `You are an expert web developer AI assistant for "${projectName || "a website"}". Your job is to help users build beautiful, modern websites.
 
 When the user describes what they want, generate clean, semantic HTML with Tailwind CSS classes. 
 
@@ -46,10 +74,7 @@ If the user asks questions or wants modifications, update the code accordingly a
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
     });
@@ -57,7 +82,7 @@ If the user asks questions or wants modifications, update the code accordingly a
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      
+
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
@@ -70,7 +95,7 @@ If the user asks questions or wants modifications, update the code accordingly a
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,7 +103,7 @@ If the user asks questions or wants modifications, update the code accordingly a
     }
 
     console.log("Streaming response back to client");
-    
+
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });

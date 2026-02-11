@@ -32,6 +32,18 @@ npm run build
 npm run preview
 ```
 
+
+## Supabase Edge Function secrets
+
+For `supabase/functions/chat`, configure:
+
+```bash
+supabase secrets set LOVABLE_API_KEY=<value> --project-ref <project-ref>
+supabase secrets set ALLOWED_ORIGINS=https://your-app.com,https://staging.your-app.com --project-ref <project-ref>
+```
+
+The chat function is JWT-protected (`verify_jwt = true`) and expects authenticated bearer tokens.
+
 ## Lovable workflow (if this repo is linked)
 
 1. Open the linked Lovable project.

@@ -115,11 +115,13 @@ Consumed by `src/integrations/supabase/client.ts`:
 `supabase/functions/chat/index.ts` requires:
 
 - `LOVABLE_API_KEY`
+- `ALLOWED_ORIGINS` (comma-separated allowlist of trusted web origins)
 
 Set in Supabase secrets:
 
 ```bash
 supabase secrets set LOVABLE_API_KEY=<value> --project-ref <project-ref>
+supabase secrets set ALLOWED_ORIGINS=https://your-app.com,https://staging.your-app.com --project-ref <project-ref>
 ```
 
 ## Deployment note
@@ -157,15 +159,22 @@ supabase functions deploy chat --project-ref <project-ref>
 
 ## 6) Production hardening plan (prioritized)
 
+### Current implementation status
+
+- ✅ `functions.chat` now enforces JWT (`verify_jwt = true`).
+- ✅ Frontend chat requests now send the signed-in user's access token instead of the public key.
+- ✅ Chat CORS now uses an `ALLOWED_ORIGINS` allowlist secret instead of wildcard `*`.
+
+
 ## P0 — critical before broad production exposure
 
-1. **Enable JWT verification for chat function**
-   - Current config: `[functions.chat] verify_jwt = false`.
-   - Action: set `verify_jwt = true` and validate auth claims in function handler.
+1. **Maintain JWT verification for chat function**
+   - Implemented: `[functions.chat] verify_jwt = true`.
+   - Next action: keep token validation in place and add explicit auth/claim checks if role-level authorization is introduced.
 
-2. **Replace wildcard CORS**
-   - Current function uses `Access-Control-Allow-Origin: *`.
-   - Action: allowlist explicit origins by environment (`dev/staging/prod`).
+2. **Maintain strict CORS allowlist**
+   - Implemented: origin matching via `ALLOWED_ORIGINS`.
+   - Next action: keep allowlist environment-specific (`dev/staging/prod`) and review regularly.
 
 3. **Constrain analytics update writes**
    - Current `project_analytics` update policy allows unrestricted updates (`USING (true)` / `WITH CHECK (true)`).
