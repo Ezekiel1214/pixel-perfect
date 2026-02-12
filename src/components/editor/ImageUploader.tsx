@@ -62,23 +62,9 @@ export function ImageUploader({ onInsertImage }: ImageUploaderProps) {
     loadImages();
   });
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
-
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !user) return;
-
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast({ variant: "destructive", title: "File too large", description: `${file.name} exceeds the 5 MB limit.` });
-        return;
-      }
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast({ variant: "destructive", title: "Invalid file type", description: `${file.name} is not a supported image format.` });
-        return;
-      }
-    }
 
     setIsUploading(true);
     try {

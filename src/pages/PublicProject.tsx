@@ -63,7 +63,23 @@ export default function PublicProject() {
 
   const trackView = async (projectId: string) => {
     try {
-      await supabase.rpc("increment_project_view", { p_project_id: projectId });
+      // First try to get existing analytics
+      const { data: existing } = await supabase
+        .from("project_analytics")
+        .select("id, view_count")
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      if (existing) {
+        // Update view count
+        await supabase
+          .from("project_analytics")
+          .update({
+            view_count: existing.view_count + 1,
+            last_viewed_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      }
     } catch (error) {
       console.error("Error tracking view:", error);
     }
@@ -101,7 +117,7 @@ export default function PublicProject() {
         srcDoc={content}
         title={projectName}
         className="w-full h-screen border-0"
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-same-origin"
       />
     </>
   );

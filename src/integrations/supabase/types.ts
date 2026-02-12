@@ -192,10 +192,6 @@ export type Database = {
         Args: { p_project_id: string; p_user_id: string }
         Returns: boolean
       }
-      increment_project_view: {
-        Args: { p_project_id: string }
-        Returns: undefined
-      }
     }
     Enums: {
       team_role: "viewer" | "editor" | "admin"

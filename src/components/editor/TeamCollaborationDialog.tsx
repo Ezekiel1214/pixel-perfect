@@ -190,11 +190,30 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
         </DialogHeader>
 
         {isOwner && (
-          <div className="flex items-center gap-2 mb-4 p-3 rounded-lg border border-border bg-muted/50">
-            <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              Team invitations are coming soon. Stay tuned!
-            </p>
+          <div className="flex gap-2 mb-4">
+            <Input
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+            />
+            <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="viewer">Viewer</SelectItem>
+                <SelectItem value="editor">Editor</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAddMember} disabled={isAdding}>
+              {isAdding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         )}
 

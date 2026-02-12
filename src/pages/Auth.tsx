@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,30 +13,8 @@ import { Loader2, Sparkles } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
-
-const getFriendlyAuthErrorMessage = (errorMessage: string) => {
-  const normalizedMessage = errorMessage.toLowerCase();
-
-  if (errorMessage === "Invalid login credentials") {
-    return "Invalid email or password. Please try again.";
-  }
-
-  if (
-    normalizedMessage.includes("failed to fetch") ||
-    normalizedMessage.includes("network") ||
-    normalizedMessage.includes("fetch")
-  ) {
-    return "Cannot reach authentication server. Check VITE_SUPABASE_URL and your network/DNS settings.";
-  }
-
-  if (normalizedMessage.includes("already registered")) {
-    return "This email is already registered. Please sign in instead.";
-  }
-
-  return "An unexpected error occurred. Please try again.";
-};
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -83,7 +61,9 @@ const Auth = () => {
       toast({
         variant: "destructive",
         title: "Sign in failed",
-        description: getFriendlyAuthErrorMessage(error.message),
+        description: error.message === "Invalid login credentials" 
+          ? "Invalid email or password. Please try again."
+          : error.message,
       });
     } else {
       toast({
@@ -103,10 +83,14 @@ const Auth = () => {
     setIsLoading(false);
 
     if (error) {
+      let errorMessage = error.message;
+      if (error.message.includes("already registered")) {
+        errorMessage = "This email is already registered. Please sign in instead.";
+      }
       toast({
         variant: "destructive",
         title: "Sign up failed",
-        description: getFriendlyAuthErrorMessage(error.message),
+        description: errorMessage,
       });
     } else {
       toast({
@@ -183,9 +167,9 @@ const Auth = () => {
                       )}
                     </div>
                     <div className="text-right">
-                      <Link to="/reset-password" className="text-sm text-muted-foreground hover:text-foreground underline">
+                      <a href="/reset-password" className="text-sm text-muted-foreground hover:text-foreground underline">
                         Forgot password?
-                      </Link>
+                      </a>
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -257,9 +241,9 @@ const Auth = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-4">
             By continuing, you agree to our{" "}
-            <Link to="/terms" className="underline hover:text-foreground">Terms of Service</Link>
+            <a href="/terms" className="underline hover:text-foreground">Terms of Service</a>
             {" "}and{" "}
-            <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+            <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>.
           </p>
         </div>
       </div>
