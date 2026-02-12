@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +13,7 @@ import { Loader2, Sparkles } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 const getFriendlyAuthErrorMessage = (errorMessage: string) => {
@@ -35,7 +35,7 @@ const getFriendlyAuthErrorMessage = (errorMessage: string) => {
     return "This email is already registered. Please sign in instead.";
   }
 
-  return errorMessage;
+  return "An unexpected error occurred. Please try again.";
 };
 
 const Auth = () => {
@@ -183,9 +183,9 @@ const Auth = () => {
                       )}
                     </div>
                     <div className="text-right">
-                      <a href="/reset-password" className="text-sm text-muted-foreground hover:text-foreground underline">
+                      <Link to="/reset-password" className="text-sm text-muted-foreground hover:text-foreground underline">
                         Forgot password?
-                      </a>
+                      </Link>
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -257,9 +257,9 @@ const Auth = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-4">
             By continuing, you agree to our{" "}
-            <a href="/terms" className="underline hover:text-foreground">Terms of Service</a>
+            <Link to="/terms" className="underline hover:text-foreground">Terms of Service</Link>
             {" "}and{" "}
-            <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>.
+            <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
           </p>
         </div>
       </div>
