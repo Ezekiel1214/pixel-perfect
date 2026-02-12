@@ -16,6 +16,28 @@ const authSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+const getFriendlyAuthErrorMessage = (errorMessage: string) => {
+  const normalizedMessage = errorMessage.toLowerCase();
+
+  if (errorMessage === "Invalid login credentials") {
+    return "Invalid email or password. Please try again.";
+  }
+
+  if (
+    normalizedMessage.includes("failed to fetch") ||
+    normalizedMessage.includes("network") ||
+    normalizedMessage.includes("fetch")
+  ) {
+    return "Cannot reach authentication server. Check VITE_SUPABASE_URL and your network/DNS settings.";
+  }
+
+  if (normalizedMessage.includes("already registered")) {
+    return "This email is already registered. Please sign in instead.";
+  }
+
+  return errorMessage;
+};
+
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,9 +83,7 @@ const Auth = () => {
       toast({
         variant: "destructive",
         title: "Sign in failed",
-        description: error.message === "Invalid login credentials" 
-          ? "Invalid email or password. Please try again."
-          : error.message,
+        description: getFriendlyAuthErrorMessage(error.message),
       });
     } else {
       toast({
@@ -83,14 +103,10 @@ const Auth = () => {
     setIsLoading(false);
 
     if (error) {
-      let errorMessage = error.message;
-      if (error.message.includes("already registered")) {
-        errorMessage = "This email is already registered. Please sign in instead.";
-      }
       toast({
         variant: "destructive",
         title: "Sign up failed",
-        description: errorMessage,
+        description: getFriendlyAuthErrorMessage(error.message),
       });
     } else {
       toast({
