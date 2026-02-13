@@ -93,7 +93,8 @@ const configuredAllowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const allowAnyOrigin = configuredAllowedOrigins.includes("*");
+const allowMissingOrigin = (Deno.env.get("ALLOW_MISSING_ORIGIN") ?? "").toLowerCase() === "true";
+const wildcardConfigured = configuredAllowedOrigins.includes("*");
 const concreteConfiguredOrigins = configuredAllowedOrigins.filter((origin) => origin !== "*");
 const allowedOrigins = Array.from(
   new Set(
@@ -104,17 +105,15 @@ const allowedOrigins = Array.from(
 );
 const invalidConfiguredOrigins = concreteConfiguredOrigins.filter((origin) => !parseHttpOrigin(origin));
 
+if (wildcardConfigured) {
+  console.warn("Ignoring wildcard ALLOWED_ORIGINS entry; explicit origins are required.");
+}
+
 if (invalidConfiguredOrigins.length > 0) {
   console.warn("Ignoring invalid ALLOWED_ORIGINS entries:", invalidConfiguredOrigins.join(", "));
 }
 
-const isOriginAllowed = (origin: string | null) => {
-  if (!origin) return true;
-
-  if (allowAnyOrigin) {
-    return true;
-  }
-
+const isOriginAllowed = (origin: string) => {
   const parsedOrigin = parseHttpOrigin(origin);
   if (!parsedOrigin) {
     return false;
@@ -124,27 +123,19 @@ const isOriginAllowed = (origin: string | null) => {
 };
 
 const getCorsHeaders = (origin: string | null) => {
-  if (!origin) {
-    return {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Max-Age": "86400",
-      "Vary": "Origin",
-    };
-  }
-
-  const allowOrigin = isOriginAllowed(origin)
-    ? (allowAnyOrigin ? "*" : parseHttpOrigin(origin) ?? "null")
-    : "null";
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
+
+  const parsedOrigin = origin ? parseHttpOrigin(origin) : null;
+  if (parsedOrigin && isOriginAllowed(parsedOrigin)) {
+    headers["Access-Control-Allow-Origin"] = parsedOrigin;
+  }
+
+  return headers;
 };
 
 const jsonResponse = (corsHeaders: Record<string, string>, status: number, error: string) =>
@@ -157,13 +148,19 @@ serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
-  if (origin && !allowAnyOrigin && allowedOrigins.length === 0) {
-    console.warn("ALLOWED_ORIGINS is not configured; rejecting browser-origin request", origin);
-    return jsonResponse(corsHeaders, 403, "Origin not allowed. Configure ALLOWED_ORIGINS.");
-  }
+  if (!origin) {
+    if (!allowMissingOrigin) {
+      return jsonResponse(corsHeaders, 403, "Origin header required");
+    }
+  } else {
+    if (allowedOrigins.length === 0) {
+      console.warn("ALLOWED_ORIGINS is not configured; rejecting browser-origin request", origin);
+      return jsonResponse(corsHeaders, 403, "Origin not allowed. Configure ALLOWED_ORIGINS.");
+    }
 
-  if (origin && !isOriginAllowed(origin)) {
-    return jsonResponse(corsHeaders, 403, "Origin not allowed");
+    if (!isOriginAllowed(origin)) {
+      return jsonResponse(corsHeaders, 403, "Origin not allowed");
+    }
   }
 
   if (req.method === "OPTIONS") {
