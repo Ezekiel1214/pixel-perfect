@@ -33,20 +33,13 @@ export default function PublicProject() {
       } else {
         setProjectName(data.name);
         
-        // Inject custom CSS and JS into content
+        // Inject custom CSS into content (custom JS is intentionally disabled on public pages)
         let finalContent = data.content || "";
         
         if (data.custom_css) {
           finalContent = finalContent.replace(
             "</head>",
             `<style>${data.custom_css}</style>\n</head>`
-          );
-        }
-        
-        if (data.custom_js) {
-          finalContent = finalContent.replace(
-            "</body>",
-            `<script>${data.custom_js}</script>\n</body>`
           );
         }
         
