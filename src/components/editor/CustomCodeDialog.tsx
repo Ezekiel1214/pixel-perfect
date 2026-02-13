@@ -140,7 +140,10 @@ console.log('Hello from custom script!');`}
                 className="min-h-[300px] font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                This script will run after the page loads
+                This script is saved with your project.
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Custom JS is disabled on public pages for security.
               </p>
             </TabsContent>
           </Tabs>
