@@ -77,8 +77,8 @@ const isRateLimited = (userId: string) => {
   return false;
 };
 
-const computePromptCharCount = (messages: unknown[]): number => {
-  return messages.reduce<number>((total, message) => {
+const computePromptCharCount = (messages: unknown[]) => {
+  return messages.reduce((total, message) => {
     if (!message || typeof message !== "object") return total;
 
     const content = (message as { content?: unknown }).content;

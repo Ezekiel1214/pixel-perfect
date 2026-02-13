@@ -21,6 +21,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 const mainItems = [
@@ -36,7 +37,6 @@ const settingsItems = [
 export function AppSidebar() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
@@ -53,10 +53,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent className="px-2">
-            <Button 
-              className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-              onClick={() => navigate("/dashboard")}
-            >
+            <Button className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2" onClick={() => navigate("/dashboard?create=1")}>
               <Plus className="w-4 h-4" />
               <span className="group-data-[collapsible=icon]:hidden">New Project</span>
             </Button>
@@ -111,13 +108,9 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-            <span className="text-sm font-medium">
-              {user?.email?.charAt(0).toUpperCase() ?? "U"}
-            </span>
+            <span className="text-sm font-medium">{(user?.email?.[0] ?? "U").toUpperCase()}</span>
           </div>
-          <span className="text-sm group-data-[collapsible=icon]:hidden truncate max-w-[140px]">
-            {user?.email ?? "Guest User"}
-          </span>
+          <span className="text-sm group-data-[collapsible=icon]:hidden">{user?.email ?? "Guest User"}</span>
         </div>
       </SidebarFooter>
     </Sidebar>

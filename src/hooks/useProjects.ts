@@ -66,6 +66,7 @@ export function useProjects() {
     },
   });
 
+
   const duplicateProject = useMutation({
     mutationFn: async (project: Project) => {
       if (!user) throw new Error("User not authenticated");
@@ -73,9 +74,11 @@ export function useProjects() {
       const { data, error } = await supabase
         .from("projects")
         .insert({
+          user_id: user.id,
           name: `${project.name} (Copy)`,
           description: project.description,
-          user_id: user.id,
+          status: "draft",
+          thumbnail_url: project.thumbnail_url,
         })
         .select()
         .single();
