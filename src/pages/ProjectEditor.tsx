@@ -27,12 +27,14 @@ export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { messages, content, isLoading, isSaving, projectName, sendMessage, setContent } = useProjectEditor(id || "");
+  const { messages, content, isLoading, isSaving, projectName, projectOwnerId, sendMessage, setContent } = useProjectEditor(id || "");
   const { content: historyContent, setContent: setHistoryContent, undo, redo, canUndo, canRedo, resetHistory } = useContentHistory();
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [showAssets, setShowAssets] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
   const { toast } = useToast();
+
+  const isOwner = user?.id === projectOwnerId;
 
   // Sync content from project editor to history
   useEffect(() => {
@@ -211,7 +213,7 @@ ${component.html}
             currentContent={content || ""}
             onRestore={handleRestoreVersion}
           />
-          <TeamCollaborationDialog projectId={id} isOwner={true} />
+          <TeamCollaborationDialog projectId={id} isOwner={isOwner} />
           <AnalyticsDialog projectId={id} />
           <CustomCodeDialog projectId={id} />
           <EditorToolbar

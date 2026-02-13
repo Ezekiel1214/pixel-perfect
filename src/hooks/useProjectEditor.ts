@@ -13,6 +13,7 @@ export function useProjectEditor(projectId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [projectOwnerId, setProjectOwnerId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Load project data
@@ -20,7 +21,7 @@ export function useProjectEditor(projectId: string) {
     const loadProject = async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("name, content, messages")
+        .select("name, content, messages, user_id")
         .eq("id", projectId)
         .maybeSingle();
 
@@ -36,6 +37,7 @@ export function useProjectEditor(projectId: string) {
 
       if (data) {
         setProjectName(data.name);
+        setProjectOwnerId(data.user_id);
         setContent(data.content || "");
         setMessages((data.messages as unknown as ChatMessage[]) || []);
       }
@@ -200,6 +202,7 @@ export function useProjectEditor(projectId: string) {
     isLoading,
     isSaving,
     projectName,
+    projectOwnerId,
     sendMessage,
     setContent,
   };
