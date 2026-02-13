@@ -121,6 +121,8 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     setIsAdding(true);
     try {
       const { error } = await supabase.rpc("create_project_invitation", {
@@ -129,7 +131,21 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
         p_role: role,
       });
 
-      if (error) throw error;
+        if (lookupError) throw lookupError;
+
+        if (invitedUserId) {
+          const { error } = await supabase.from("project_members").insert({
+            project_id: projectId,
+            user_id: invitedUserId,
+            role,
+            invited_by: authData.user.id,
+          });
+
+          if (error && error.code !== "23505") {
+            throw error;
+          }
+        }
+      }
 
       toast({
         title: "Invitation created",
