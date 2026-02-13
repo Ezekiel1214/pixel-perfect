@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Globe, Clock, MoreVertical, Loader2 } from "lucide-react";
+import { Plus, Globe, Clock, MoreVertical, Loader2, Copy } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +25,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export function ProjectsGrid() {
   const navigate = useNavigate();
-  const { projects, isLoading, createProject, deleteProject } = useProjects();
+  const { projects, isLoading, createProject, duplicateProject, deleteProject } = useProjects();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -33,7 +33,7 @@ export function ProjectsGrid() {
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     
-    await createProject.mutateAsync({
+    const created = await createProject.mutateAsync({
       name: newProjectName.trim(),
       description: newProjectDescription.trim() || undefined,
     });
@@ -41,10 +41,15 @@ export function ProjectsGrid() {
     setNewProjectName("");
     setNewProjectDescription("");
     setIsCreateDialogOpen(false);
+    navigate(`/project/${created.id}`);
   };
 
   const handleDeleteProject = async (projectId: string) => {
     await deleteProject.mutateAsync(projectId);
+  };
+
+  const handleDuplicateProject = async (project: Project) => {
+    await duplicateProject.mutateAsync(project);
   };
 
   const formatDate = (dateString: string) => {
@@ -111,8 +116,19 @@ export function ProjectsGrid() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Edit</DropdownMenuItem>
-                    <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/project/${project.id}`);
+                    }}>
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleDuplicateProject(project);
+                    }}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="text-destructive"
                       onClick={(e) => {

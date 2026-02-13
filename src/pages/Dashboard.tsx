@@ -1,11 +1,13 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Routes, Route } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { ProjectsGrid } from "@/components/dashboard/ProjectsGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import DashboardSettings from "./DashboardSettings";
+import DashboardHelp from "./DashboardHelp";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -47,7 +49,12 @@ const Dashboard = () => {
             </header>
             
             <main className="flex-1 p-6">
-              <ProjectsGrid />
+              <Routes>
+                <Route index element={<ProjectsGrid />} />
+                <Route path="projects" element={<ProjectsGrid />} />
+                <Route path="settings" element={<DashboardSettings />} />
+                <Route path="help" element={<DashboardHelp />} />
+              </Routes>
             </main>
           </div>
         </div>

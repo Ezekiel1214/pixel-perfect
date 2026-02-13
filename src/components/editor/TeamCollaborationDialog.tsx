@@ -87,26 +87,22 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
       const { data: authData } = await supabase.auth.getUser();
       if (!authData.user) throw new Error("Not authenticated");
 
-      if (authData.user.email?.toLowerCase() !== normalizedEmail) {
-        const { data: invitedUserId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {
-          p_email: normalizedEmail,
+      if (authData.user.email?.toLowerCase() === normalizedEmail) {
+        toast({
+          variant: "destructive",
+          title: "Cannot invite yourself",
+          description: "You are already the project owner.",
         });
-
-        if (lookupError) throw lookupError;
-
-        if (invitedUserId) {
-          const { error } = await supabase.from("project_members").insert({
-            project_id: projectId,
-            user_id: invitedUserId,
-            role,
-            invited_by: authData.user.id,
-          });
-
-          if (error && error.code !== "23505") {
-            throw error;
-          }
-        }
+        return;
       }
+
+      // TODO: Replace with get_user_id_by_email RPC once profiles table is created
+      // For now, show a message that the feature requires the profiles migration
+      toast({
+        variant: "destructive",
+        title: "Feature pending",
+        description: "Team invitations by email require additional setup. See the plan for details.",
+      });
 
       toast({
         title: "Invitation processed",
