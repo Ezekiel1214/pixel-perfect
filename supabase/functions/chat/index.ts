@@ -1,5 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+type RateLimitState = {
+  count: number;
+  windowStart: number;
+};
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 12;
+const MAX_MESSAGE_COUNT = 40;
+const MAX_PROMPT_CHARS = 20_000;
+
+const userRateLimitStore = new Map<string, RateLimitState>();
+
 const parseHttpOrigin = (origin: string): string | null => {
   const trimmedOrigin = origin.trim().replace(/\/+$/, "");
 
@@ -17,6 +29,63 @@ const parseHttpOrigin = (origin: string): string | null => {
   } catch {
     return null;
   }
+};
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const json = atob(padded);
+    const payload = JSON.parse(json);
+
+    return payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+};
+
+const getUserIdFromAuthHeader = (authorizationHeader: string | null): string | null => {
+  if (!authorizationHeader) return null;
+
+  const match = authorizationHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+
+  const payload = decodeJwtPayload(match[1]);
+  const sub = payload?.sub;
+
+  return typeof sub === "string" && sub.length > 0 ? sub : null;
+};
+
+const isRateLimited = (userId: string) => {
+  const now = Date.now();
+  const existing = userRateLimitStore.get(userId);
+
+  if (!existing || now - existing.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    userRateLimitStore.set(userId, { count: 1, windowStart: now });
+    return false;
+  }
+
+  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return true;
+  }
+
+  existing.count += 1;
+  userRateLimitStore.set(userId, existing);
+  return false;
+};
+
+const computePromptCharCount = (messages: unknown[]) => {
+  return messages.reduce((total, message) => {
+    if (!message || typeof message !== "object") return total;
+
+    const content = (message as { content?: unknown }).content;
+    if (typeof content !== "string") return total;
+
+    return total + content.length;
+  }, 0);
 };
 
 const configuredAllowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
@@ -115,6 +184,24 @@ serve(async (req) => {
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return jsonResponse(corsHeaders, 400, "messages must be a non-empty array");
+    }
+
+    if (messages.length > MAX_MESSAGE_COUNT) {
+      return jsonResponse(corsHeaders, 400, `Too many messages. Limit is ${MAX_MESSAGE_COUNT}.`);
+    }
+
+    const promptCharCount = computePromptCharCount(messages);
+    if (promptCharCount > MAX_PROMPT_CHARS) {
+      return jsonResponse(corsHeaders, 400, `Prompt too long. Limit is ${MAX_PROMPT_CHARS} characters.`);
+    }
+
+    const userId = getUserIdFromAuthHeader(req.headers.get("authorization"));
+    if (!userId) {
+      return jsonResponse(corsHeaders, 401, "Unauthorized");
+    }
+
+    if (isRateLimited(userId)) {
+      return jsonResponse(corsHeaders, 429, "Rate limit exceeded. Please try again later.");
     }
 
     console.log("Processing chat request for project:", projectName);
