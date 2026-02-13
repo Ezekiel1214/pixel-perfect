@@ -20,6 +20,17 @@ function DashboardPlaceholder({ title, description }: { title: string; descripti
   );
 }
 
+function DashboardPlaceholder({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="h-full min-h-[60vh] flex items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold mb-2">{title}</h2>
+        <p className="text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 const Dashboard = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
