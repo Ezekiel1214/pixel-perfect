@@ -56,7 +56,13 @@ export default function PublicProject() {
 
   const trackView = async (projectId: string) => {
     try {
-      await supabase.rpc("increment_project_view", { p_project_id: projectId });
+      const { error } = await supabase.rpc("increment_project_view", {
+        p_project_id: projectId,
+      });
+
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error("Error tracking view:", error);
     }
