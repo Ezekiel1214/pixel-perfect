@@ -102,12 +102,13 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
       });
       setEmail("");
       fetchMembers();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : "Failed to add member";
       console.error("Error adding member:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to add member",
+        description,
       });
     } finally {
       setIsAdding(false);
