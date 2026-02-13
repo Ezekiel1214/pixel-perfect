@@ -43,7 +43,7 @@ export function ProjectsGrid() {
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     
-    await createProject.mutateAsync({
+    const created = await createProject.mutateAsync({
       name: newProjectName.trim(),
       description: newProjectDescription.trim() || undefined,
     });
@@ -51,6 +51,7 @@ export function ProjectsGrid() {
     setNewProjectName("");
     setNewProjectDescription("");
     setIsCreateDialogOpen(false);
+    navigate(`/project/${created.id}`);
   };
 
   const handleDeleteProject = async (projectId: string) => {
