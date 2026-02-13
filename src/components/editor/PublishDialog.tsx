@@ -9,6 +9,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Copy, Globe, Code, ExternalLink, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+
+const normalizeSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const isStrongSlug = (value: string) =>
+  value.length >= 3 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+
 interface PublishDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,10 +53,10 @@ export function PublishDialog({ open, onOpenChange, projectId, projectName }: Pu
       .single();
 
     if (!error && data) {
-      setSlug(data.slug || generateSlug(projectName));
+      setSlug(normalizeSlug(data.slug || generateSlug(projectName)));
       setIsPublic(data.is_public || false);
     } else {
-      setSlug(generateSlug(projectName));
+      setSlug(normalizeSlug(generateSlug(projectName)));
     }
     setIsLoading(false);
   };
@@ -59,8 +70,14 @@ export function PublishDialog({ open, onOpenChange, projectId, projectName }: Pu
   };
 
   const handleSave = async () => {
-    if (!slug.trim()) {
-      toast({ variant: "destructive", title: "Slug required" });
+    const normalizedSlug = normalizeSlug(slug);
+
+    if (!isStrongSlug(normalizedSlug)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid slug",
+        description: "Use at least 3 characters with letters, numbers, or single hyphens between words.",
+      });
       return;
     }
 
@@ -68,7 +85,7 @@ export function PublishDialog({ open, onOpenChange, projectId, projectName }: Pu
     const { error } = await supabase
       .from("projects")
       .update({
-        slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+        slug: normalizedSlug,
         is_public: isPublic,
         published_at: isPublic ? new Date().toISOString() : null,
       })
@@ -124,7 +141,7 @@ export function PublishDialog({ open, onOpenChange, projectId, projectName }: Pu
                   <span className="text-muted-foreground text-sm">{baseUrl}/p/</span>
                   <Input
                     value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                     className="border-0 bg-transparent p-0 h-9 focus-visible:ring-0"
                     placeholder="my-project"
                   />

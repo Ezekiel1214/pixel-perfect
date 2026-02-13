@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -7,9 +7,21 @@ import { ProjectsGrid } from "@/components/dashboard/ProjectsGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
+function DashboardPlaceholder({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="h-full min-h-[60vh] flex items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold mb-2">{title}</h2>
+        <p className="text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 const Dashboard = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,6 +41,28 @@ const Dashboard = () => {
     return null;
   }
 
+  const renderDashboardContent = () => {
+    if (location.pathname === "/dashboard/settings") {
+      return (
+        <DashboardPlaceholder
+          title="Settings"
+          description="Settings are coming soon."
+        />
+      );
+    }
+
+    if (location.pathname === "/dashboard/help") {
+      return (
+        <DashboardPlaceholder
+          title="Help"
+          description="Help center is coming soon."
+        />
+      );
+    }
+
+    return <ProjectsGrid />;
+  };
+
   return (
     <>
       <Helmet>
@@ -43,11 +77,11 @@ const Dashboard = () => {
           <div className="flex-1 flex flex-col">
             <header className="h-14 border-b border-border flex items-center px-4 gap-4">
               <SidebarTrigger />
-              <h1 className="text-lg font-semibold">My Projects</h1>
+              <h1 className="text-lg font-semibold">Dashboard</h1>
             </header>
             
             <main className="flex-1 p-6">
-              <ProjectsGrid />
+              {renderDashboardContent()}
             </main>
           </div>
         </div>

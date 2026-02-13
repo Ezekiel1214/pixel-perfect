@@ -23,16 +23,22 @@ import { ComponentItem } from "@/data/components";
 
 type ViewMode = "preview" | "code" | "split";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { messages, content, isLoading, isSaving, projectName, sendMessage, setContent } = useProjectEditor(id || "");
+  const isValidProjectId = !!id && UUID_PATTERN.test(id);
+  const projectId = isValidProjectId && id ? id : "";
+  const { messages, content, isLoading, isSaving, projectName, projectOwnerId, sendMessage, setContent } = useProjectEditor(projectId);
   const { content: historyContent, setContent: setHistoryContent, undo, redo, canUndo, canRedo, resetHistory } = useContentHistory();
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [showAssets, setShowAssets] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
   const { toast } = useToast();
+
+  const isOwner = user?.id === projectOwnerId;
 
   // Sync content from project editor to history
   useEffect(() => {
@@ -156,7 +162,7 @@ ${component.html}
     );
   }
 
-  if (!id) {
+  if (!isValidProjectId) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Project not found</p>
@@ -211,7 +217,7 @@ ${component.html}
             currentContent={content || ""}
             onRestore={handleRestoreVersion}
           />
-          <TeamCollaborationDialog projectId={id} isOwner={true} />
+          <TeamCollaborationDialog projectId={id} isOwner={isOwner} />
           <AnalyticsDialog projectId={id} />
           <CustomCodeDialog projectId={id} />
           <EditorToolbar
