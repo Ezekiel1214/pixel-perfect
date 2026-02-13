@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -57,10 +57,10 @@ export function ImageUploader({ onInsertImage }: ImageUploaderProps) {
     }
   }, [user]);
 
-  // Load images on mount
-  useState(() => {
+  // Load images on mount/open user change
+  useEffect(() => {
     loadImages();
-  });
+  }, [loadImages]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -81,8 +81,9 @@ export function ImageUploader({ onInsertImage }: ImageUploaderProps) {
 
       toast({ title: "Upload successful", description: `${files.length} image(s) uploaded` });
       loadImages();
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Upload failed", description: error.message });
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : "Unknown error";
+      toast({ variant: "destructive", title: "Upload failed", description });
     } finally {
       setIsUploading(false);
     }
@@ -95,8 +96,9 @@ export function ImageUploader({ onInsertImage }: ImageUploaderProps) {
       
       setImages((prev) => prev.filter((img) => img.path !== path));
       toast({ title: "Image deleted" });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Delete failed", description: error.message });
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : "Unknown error";
+      toast({ variant: "destructive", title: "Delete failed", description });
     }
   };
 
