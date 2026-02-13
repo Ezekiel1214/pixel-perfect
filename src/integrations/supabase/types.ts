@@ -52,6 +52,53 @@ export type Database = {
           },
         ]
       }
+      project_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          project_id: string
+          revoked_at: string | null
+          role: string
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          project_id: string
+          revoked_at?: string | null
+          role?: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          project_id?: string
+          revoked_at?: string | null
+          role?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_invitations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string
@@ -184,9 +231,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_project_invitation: {
+        Args: { p_token: string }
+        Returns: string
+      }
+      create_project_invitation: {
+        Args: {
+          p_email: string
+          p_project_id: string
+          p_role?: string
+          p_ttl_minutes?: number
+        }
+        Returns: {
+          expires_at: string
+          invite_id: string
+          token: string
+        }[]
+      }
       can_edit_project: {
         Args: { p_project_id: string; p_user_id: string }
         Returns: boolean
+      }
+      get_user_id_by_email: {
+        Args: { p_email: string }
+        Returns: string | null
+      }
+      increment_project_view: {
+        Args: { p_project_id: string }
+        Returns: undefined
       }
       has_project_access: {
         Args: { p_project_id: string; p_user_id: string }

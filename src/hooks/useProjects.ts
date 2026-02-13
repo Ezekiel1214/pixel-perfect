@@ -66,6 +66,42 @@ export function useProjects() {
     },
   });
 
+
+  const duplicateProject = useMutation({
+    mutationFn: async (project: Project) => {
+      if (!user) throw new Error("User not authenticated");
+
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: `${project.name} (Copy)`,
+          description: project.description,
+          status: "draft",
+          thumbnail_url: project.thumbnail_url,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Project;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      toast({
+        title: "Project duplicated",
+        description: "A copy of the project has been created.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to duplicate project",
+        description: error.message,
+      });
+    },
+  });
+
   const deleteProject = useMutation({
     mutationFn: async (projectId: string) => {
       const { error } = await supabase
@@ -96,6 +132,7 @@ export function useProjects() {
     isLoading: projectsQuery.isLoading,
     error: projectsQuery.error,
     createProject,
+    duplicateProject,
     deleteProject,
   };
 }

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Users, UserPlus, Trash2, Loader2, Mail } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
@@ -32,6 +34,14 @@ interface TeamMember {
   created_at: string;
 }
 
+interface PendingInvitation {
+  id: string;
+  email: string;
+  role: TeamRole;
+  expires_at: string;
+  created_at: string;
+}
+
 interface TeamCollaborationDialogProps {
   projectId: string;
   isOwner: boolean;
@@ -40,38 +50,69 @@ interface TeamCollaborationDialogProps {
 export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaborationDialogProps) {
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<TeamRole>("viewer");
   const [isAdding, setIsAdding] = useState(false);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (open) {
-      fetchMembers();
-    }
-  }, [open, projectId]);
+  const fetchMembers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("project_members")
+      .select("id, user_id, role, created_at")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
 
-  const fetchMembers = async () => {
+    if (error) {
+      throw error;
+    }
+
+    setMembers((data as TeamMember[]) || []);
+  }, [projectId]);
+
+  const fetchPendingInvites = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("project_invitations")
+      .select("id, email, role, expires_at, created_at")
+      .eq("project_id", projectId)
+      .is("accepted_at", null)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    setPendingInvites((data as PendingInvitation[]) || []);
+  }, [projectId]);
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("project_members")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setMembers(data || []);
-    } catch (error) {
-      console.error("Error fetching members:", error);
+      await Promise.all([fetchMembers(), fetchPendingInvites()]);
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load collaboration data",
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchMembers, fetchPendingInvites, toast]);
+
+  useEffect(() => {
+    if (open) {
+      void fetchData();
+    }
+  }, [open, fetchData]);
 
   const handleAddMember = async () => {
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       toast({
         variant: "destructive",
         title: "Email required",
@@ -82,32 +123,27 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
 
     setIsAdding(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
-
-      // In a real app, you'd look up the user by email
-      // For now, we'll create a placeholder invitation
-      const { error } = await supabase.from("project_members").insert({
-        project_id: projectId,
-        user_id: user.user.id, // This should be the invited user's ID
-        role,
-        invited_by: user.user.id,
+      const { error } = await supabase.rpc("create_project_invitation", {
+        p_project_id: projectId,
+        p_email: normalizedEmail,
+        p_role: role,
       });
 
       if (error) throw error;
 
       toast({
-        title: "Member invited",
-        description: `Invitation sent to ${email}`,
+        title: "Invitation created",
+        description:
+          "If an account exists for that email, they can accept it after signing in.",
       });
+
       setEmail("");
-      fetchMembers();
-    } catch (error: any) {
-      console.error("Error adding member:", error);
+      await fetchPendingInvites();
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to add member",
+        description: "Failed to create invitation",
       });
     } finally {
       setIsAdding(false);
@@ -116,10 +152,7 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const { error } = await supabase
-        .from("project_members")
-        .delete()
-        .eq("id", memberId);
+      const { error } = await supabase.from("project_members").delete().eq("id", memberId);
 
       if (error) throw error;
 
@@ -127,14 +160,35 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
         title: "Member removed",
         description: "Team member has been removed",
       });
-      fetchMembers();
-    } catch (error) {
-      console.error("Error removing member:", error);
+      await fetchMembers();
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to remove member",
       });
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    setRevokingInviteId(inviteId);
+    try {
+      const { error } = await supabase.from("project_invitations").delete().eq("id", inviteId);
+      if (error) throw error;
+
+      toast({
+        title: "Invitation revoked",
+        description: "The pending invitation was revoked",
+      });
+      await fetchPendingInvites();
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to revoke invitation",
+      });
+    } finally {
+      setRevokingInviteId(null);
     }
   };
 
@@ -151,9 +205,8 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
         title: "Role updated",
         description: `Member role changed to ${newRole}`,
       });
-      fetchMembers();
-    } catch (error) {
-      console.error("Error updating role:", error);
+      await fetchMembers();
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",
@@ -162,14 +215,14 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
     }
   };
 
-  const getRoleBadgeVariant = (role: TeamRole) => {
-    switch (role) {
+  const getRoleBadgeVariant = (memberRole: TeamRole) => {
+    switch (memberRole) {
       case "admin":
-        return "default";
+        return "default" as const;
       case "editor":
-        return "secondary";
+        return "secondary" as const;
       default:
-        return "outline";
+        return "outline" as const;
     }
   };
 
@@ -184,9 +237,7 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Team Collaboration</DialogTitle>
-          <DialogDescription>
-            Invite team members to collaborate on this project
-          </DialogDescription>
+          <DialogDescription>Invite team members to collaborate on this project</DialogDescription>
         </DialogHeader>
 
         {isOwner && (
@@ -208,11 +259,7 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
               </SelectContent>
             </Select>
             <Button onClick={handleAddMember} disabled={isAdding}>
-              {isAdding ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
+              {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
             </Button>
           </div>
         )}
@@ -221,62 +268,108 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : members.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No team members yet</p>
-            <p className="text-sm">Invite others to collaborate</p>
-          </div>
         ) : (
-          <ScrollArea className="h-[300px]">
-            <div className="space-y-2">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                      <Mail className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        Team Member
-                      </p>
-                      <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
-                        {member.role}
-                      </Badge>
-                    </div>
-                  </div>
-                  {isOwner && (
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={member.role}
-                        onValueChange={(v) => handleUpdateRole(member.id, v as TeamRole)}
-                      >
-                        <SelectTrigger className="w-24 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="viewer">Viewer</SelectItem>
-                          <SelectItem value="editor">Editor</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => handleRemoveMember(member.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+          <>
+            <div>
+              <h4 className="text-sm font-medium mb-2">Team members</h4>
+              {members.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No team members yet</p>
                 </div>
-              ))}
+              ) : (
+                <ScrollArea className="h-[180px]">
+                  <div className="space-y-2 pr-2">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <Mail className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Team Member</p>
+                            <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
+                              {member.role}
+                            </Badge>
+                          </div>
+                        </div>
+                        {isOwner && (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={member.role}
+                              onValueChange={(v) => handleUpdateRole(member.id, v as TeamRole)}
+                            >
+                              <SelectTrigger className="w-24 h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="viewer">Viewer</SelectItem>
+                                <SelectItem value="editor">Editor</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => void handleRemoveMember(member.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
-          </ScrollArea>
+
+            <Separator className="my-4" />
+
+            <div>
+              <h4 className="text-sm font-medium mb-2">Pending invitations</h4>
+              {pendingInvites.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No pending invitations.</p>
+              ) : (
+                <ScrollArea className="h-[140px]">
+                  <div className="space-y-2 pr-2">
+                    {pendingInvites.map((invite) => (
+                      <div
+                        key={invite.id}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{invite.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {invite.role} • expires {formatDistanceToNow(new Date(invite.expires_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        {isOwner && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            disabled={revokingInviteId === invite.id}
+                            onClick={() => void handleRevokeInvite(invite.id)}
+                          >
+                            {revokingInviteId === invite.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          </>
         )}
       </DialogContent>
     </Dialog>
