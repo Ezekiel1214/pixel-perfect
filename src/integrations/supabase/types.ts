@@ -188,10 +188,6 @@ export type Database = {
         Args: { p_project_id: string; p_user_id: string }
         Returns: boolean
       }
-      get_user_id_by_email: {
-        Args: { p_email: string }
-        Returns: string | null
-      }
       has_project_access: {
         Args: { p_project_id: string; p_user_id: string }
         Returns: boolean
