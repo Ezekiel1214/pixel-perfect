@@ -33,20 +33,13 @@ export default function PublicProject() {
       } else {
         setProjectName(data.name);
         
-        // Inject custom CSS and JS into content
+        // Inject custom CSS into content (custom JS is intentionally disabled on public pages)
         let finalContent = data.content || "";
         
         if (data.custom_css) {
           finalContent = finalContent.replace(
             "</head>",
             `<style>${data.custom_css}</style>\n</head>`
-          );
-        }
-        
-        if (data.custom_js) {
-          finalContent = finalContent.replace(
-            "</body>",
-            `<script>${data.custom_js}</script>\n</body>`
           );
         }
         
@@ -63,22 +56,12 @@ export default function PublicProject() {
 
   const trackView = async (projectId: string) => {
     try {
-      // First try to get existing analytics
-      const { data: existing } = await supabase
-        .from("project_analytics")
-        .select("id, view_count")
-        .eq("project_id", projectId)
-        .maybeSingle();
+      const { error } = await supabase.rpc("increment_project_view", {
+        p_project_id: projectId,
+      });
 
-      if (existing) {
-        // Update view count
-        await supabase
-          .from("project_analytics")
-          .update({
-            view_count: existing.view_count + 1,
-            last_viewed_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
+      if (error) {
+        throw error;
       }
     } catch (error) {
       console.error("Error tracking view:", error);

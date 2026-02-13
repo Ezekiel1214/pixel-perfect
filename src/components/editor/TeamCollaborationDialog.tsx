@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Users, UserPlus, Trash2, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,13 +46,7 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
   const [isAdding, setIsAdding] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (open) {
-      fetchMembers();
-    }
-  }, [open, projectId]);
-
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -68,7 +62,13 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    if (open) {
+      fetchMembers();
+    }
+  }, [open, fetchMembers]);
 
   const handleAddMember = async () => {
     if (!email.trim()) {
@@ -80,34 +80,47 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     setIsAdding(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Not authenticated");
 
-      // In a real app, you'd look up the user by email
-      // For now, we'll create a placeholder invitation
-      const { error } = await supabase.from("project_members").insert({
-        project_id: projectId,
-        user_id: user.user.id, // This should be the invited user's ID
-        role,
-        invited_by: user.user.id,
-      });
+      if (authData.user.email?.toLowerCase() !== normalizedEmail) {
+        const { data: invitedUserId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {
+          p_email: normalizedEmail,
+        });
 
-      if (error) throw error;
+        if (lookupError) throw lookupError;
+
+        if (invitedUserId) {
+          const { error } = await supabase.from("project_members").insert({
+            project_id: projectId,
+            user_id: invitedUserId,
+            role,
+            invited_by: authData.user.id,
+          });
+
+          if (error && error.code !== "23505") {
+            throw error;
+          }
+        }
+      }
 
       toast({
-        title: "Member invited",
-        description: `Invitation sent to ${email}`,
+        title: "Invitation processed",
+        description: "If an account exists for that email, access has been granted.",
       });
       setEmail("");
-      fetchMembers();
-    } catch (error: any) {
+      await fetchMembers();
+    } catch (error: unknown) {
       console.error("Error adding member:", error);
+      const description = error instanceof Error ? error.message : "Failed to process invitation";
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to add member",
+        description,
       });
     } finally {
       setIsAdding(false);
