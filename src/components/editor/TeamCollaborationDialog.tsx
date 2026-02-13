@@ -80,48 +80,43 @@ export function TeamCollaborationDialog({ projectId, isOwner }: TeamCollaboratio
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     setIsAdding(true);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
       const { data: authData } = await supabase.auth.getUser();
       if (!authData.user) throw new Error("Not authenticated");
 
-      if (authData.user.email?.toLowerCase() === normalizedEmail) {
-        throw new Error("You are already part of this project");
-      }
+      if (authData.user.email?.toLowerCase() !== normalizedEmail) {
+        const { data: invitedUserId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {
+          p_email: normalizedEmail,
+        });
 
-      const { data: invitedUserId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {
-        p_email: normalizedEmail,
-      });
+        if (lookupError) throw lookupError;
 
-      if (lookupError) throw lookupError;
-      if (!invitedUserId) {
-        throw new Error("No account found with that email address");
-      }
+        if (invitedUserId) {
+          const { error } = await supabase.from("project_members").insert({
+            project_id: projectId,
+            user_id: invitedUserId,
+            role,
+            invited_by: authData.user.id,
+          });
 
-      const { error } = await supabase.from("project_members").insert({
-        project_id: projectId,
-        user_id: invitedUserId,
-        role,
-        invited_by: authData.user.id,
-      });
-
-      if (error) {
-        if (error.code === "23505") {
-          throw new Error("This user is already a team member");
+          if (error && error.code !== "23505") {
+            throw error;
+          }
         }
-        throw error;
       }
 
       toast({
-        title: "Member added",
-        description: `${normalizedEmail} can now access this project`,
+        title: "Invitation processed",
+        description: "If an account exists for that email, access has been granted.",
       });
       setEmail("");
       await fetchMembers();
     } catch (error: unknown) {
-      const description = error instanceof Error ? error.message : "Failed to add member";
       console.error("Error adding member:", error);
+      const description = error instanceof Error ? error.message : "Failed to process invitation";
       toast({
         variant: "destructive",
         title: "Error",
