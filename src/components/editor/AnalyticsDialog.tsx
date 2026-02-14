@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BarChart3, Eye, Users, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,13 +33,7 @@ export function AnalyticsDialog({ projectId }: AnalyticsDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (open) {
-      fetchAnalytics();
-    }
-  }, [open, projectId]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -73,7 +67,13 @@ export function AnalyticsDialog({ projectId }: AnalyticsDialogProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId, toast]);
+
+  useEffect(() => {
+    if (open) {
+      fetchAnalytics();
+    }
+  }, [open, fetchAnalytics]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

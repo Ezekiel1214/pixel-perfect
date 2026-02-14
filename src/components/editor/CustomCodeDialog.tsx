@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Code2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,13 +27,7 @@ export function CustomCodeDialog({ projectId }: CustomCodeDialogProps) {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (open) {
-      fetchCustomCode();
-    }
-  }, [open, projectId]);
-
-  const fetchCustomCode = async () => {
+  const fetchCustomCode = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -55,7 +49,13 @@ export function CustomCodeDialog({ projectId }: CustomCodeDialogProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId, toast]);
+
+  useEffect(() => {
+    if (open) {
+      fetchCustomCode();
+    }
+  }, [open, fetchCustomCode]);
 
   const handleSave = async () => {
     setIsSaving(true);

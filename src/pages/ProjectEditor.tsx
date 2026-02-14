@@ -45,21 +45,21 @@ export default function ProjectEditor() {
     if (content && content !== historyContent) {
       setHistoryContent(content);
     }
-  }, [content]);
+  }, [content, historyContent, setHistoryContent]);
 
   // Sync history content back to project editor when undo/redo
   useEffect(() => {
     if (historyContent !== content) {
       setContent(historyContent);
     }
-  }, [historyContent]);
+  }, [historyContent, content, setContent]);
 
   // Initialize history when project loads
   useEffect(() => {
     if (content) {
       resetHistory(content);
     }
-  }, [projectName]); // Reset when project loads (projectName changes)
+  }, [content, projectName, resetHistory]); // Reset when project loads (projectName changes)
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {

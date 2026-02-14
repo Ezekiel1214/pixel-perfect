@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { History, RotateCcw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -35,13 +35,7 @@ export function VersionHistoryDialog({ projectId, currentContent, onRestore }: V
   const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (open) {
-      fetchVersions();
-    }
-  }, [open, projectId]);
-
-  const fetchVersions = async () => {
+  const fetchVersions = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -62,7 +56,13 @@ export function VersionHistoryDialog({ projectId, currentContent, onRestore }: V
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId, toast]);
+
+  useEffect(() => {
+    if (open) {
+      fetchVersions();
+    }
+  }, [open, fetchVersions]);
 
   const handleRestore = (version: Version) => {
     onRestore(version.content);

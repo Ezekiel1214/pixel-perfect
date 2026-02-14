@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,13 +38,15 @@ export function PublishDialog({ open, onOpenChange, projectId, projectName }: Pu
   const publicUrl = slug ? `${baseUrl}/p/${slug}` : "";
   const embedCode = slug ? `<iframe src="${publicUrl}" width="100%" height="600" frameborder="0"></iframe>` : "";
 
-  useEffect(() => {
-    if (open) {
-      loadProjectSettings();
-    }
-  }, [open, projectId]);
+  const generateSlug = useCallback((name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 50) + "-" + Math.random().toString(36).slice(2, 8);
+  }, []);
 
-  const loadProjectSettings = async () => {
+  const loadProjectSettings = useCallback(async () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from("projects")
@@ -59,15 +61,13 @@ export function PublishDialog({ open, onOpenChange, projectId, projectName }: Pu
       setSlug(normalizeSlug(generateSlug(projectName)));
     }
     setIsLoading(false);
-  };
+  }, [projectId, projectName, generateSlug]);
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 50) + "-" + Math.random().toString(36).slice(2, 8);
-  };
+  useEffect(() => {
+    if (open) {
+      loadProjectSettings();
+    }
+  }, [open, loadProjectSettings]);
 
   const handleSave = async () => {
     const normalizedSlug = normalizeSlug(slug);
