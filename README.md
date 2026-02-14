@@ -1,6 +1,6 @@
-# Pixel Perfect
+# AI Web Builder Pro
 
-Pixel Perfect is a Vite + React + TypeScript project for AI-assisted website creation, editing, and publishing.
+AI Web Builder Pro is a Vite + React + TypeScript project for AI-assisted website creation, editing, and publishing.
 
 ## Primary docs
 

@@ -45,7 +45,7 @@ export function AppSidebar() {
             <Sparkles className="w-5 h-5 text-primary-foreground" />
           </div>
           <span className="font-bold text-lg group-data-[collapsible=icon]:hidden">
-            AIWebBuilder
+            AI Web Builder Pro
           </span>
         </div>
       </SidebarHeader>
