@@ -9,17 +9,6 @@ import { Loader2 } from "lucide-react";
 import DashboardSettings from "./DashboardSettings";
 import DashboardHelp from "./DashboardHelp";
 
-function DashboardPlaceholder({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="h-full min-h-[60vh] flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold mb-2">{title}</h2>
-        <p className="text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
-}
-
 const Dashboard = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -45,21 +34,11 @@ const Dashboard = () => {
 
   const renderDashboardContent = () => {
     if (location.pathname === "/dashboard/settings") {
-      return (
-        <DashboardPlaceholder
-          title="Settings"
-          description="Settings are coming soon."
-        />
-      );
+      return <DashboardSettings />;
     }
 
     if (location.pathname === "/dashboard/help") {
-      return (
-        <DashboardPlaceholder
-          title="Help"
-          description="Help center is coming soon."
-        />
-      );
+      return <DashboardHelp />;
     }
 
     return <ProjectsGrid />;
