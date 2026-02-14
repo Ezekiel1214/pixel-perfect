@@ -21,7 +21,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+
 import { useAuth } from "@/hooks/useAuth";
 
 const mainItems = [
