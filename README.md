@@ -13,6 +13,8 @@ npm install
 npm run dev
 ```
 
+If you extracted the project from a ZIP on Windows (for example, under a path like `C:\Users\surface\Downloads\pixel-perfect-main\pixel-perfect`), open a terminal in that folder before running the commands above.
+
 App runs on `http://localhost:5173` by default.
 
 ## Required environment variables
