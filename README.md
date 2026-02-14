@@ -21,7 +21,9 @@ App runs on `http://localhost:8080` by default.
 
 In development, this repo proxies `http://localhost:8080/functions/v1/*` to `${VITE_SUPABASE_URL}/functions/v1/*` so browser requests avoid CORS issues.
 
-To use the proxy, call edge functions with a relative URL (for example `fetch("/functions/v1/chat")`) instead of calling `https://<project-ref>.supabase.co/functions/v1/...` directly.
+To use the proxy, call edge functions with a relative URL in development (for example `fetch("/functions/v1/chat")`) instead of calling `https://<project-ref>.supabase.co/functions/v1/...` directly.
+
+In production, call the fully qualified Supabase function URL (`https://<project-ref>.supabase.co/functions/v1/...`) so CORS is handled by your deployed backend/origin setup.
 
 Quick verification:
 
