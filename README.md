@@ -23,6 +23,8 @@ In development, this repo proxies `http://localhost:8080/functions/v1/*` to `${V
 
 To use the proxy, call edge functions with a relative URL in development (for example `fetch("/functions/v1/chat")`) instead of calling `https://<project-ref>.supabase.co/functions/v1/...` directly.
 
+This also applies when testing locally over LAN/private IP hosts (for example `192.168.x.x` or `10.x.x.x`) so requests still stay same-origin to your local Vite server.
+
 In production, call the fully qualified Supabase function URL (`https://<project-ref>.supabase.co/functions/v1/...`) so CORS is handled by your deployed backend/origin setup.
 
 Quick verification:

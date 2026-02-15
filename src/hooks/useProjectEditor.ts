@@ -93,8 +93,12 @@ export function useProjectEditor(projectId: string) {
         throw new Error("You must be signed in to use AI chat.");
       }
 
-      const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-      const chatFunctionUrl = isLocalhost
+      const hostname = window.location.hostname;
+      const isLocalHost = ["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(hostname);
+      const isPrivateIpv4 = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
+      const shouldUseProxy = import.meta.env.DEV || isLocalHost || isPrivateIpv4;
+
+      const chatFunctionUrl = shouldUseProxy
         ? "/functions/v1/chat"
         : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
