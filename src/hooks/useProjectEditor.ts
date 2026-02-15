@@ -93,15 +93,20 @@ export function useProjectEditor(projectId: string) {
         throw new Error("You must be signed in to use AI chat.");
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+      const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      const chatFunctionUrl = isLocalhost
+        ? "/functions/v1/chat"
+        : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+      const response = await fetch(chatFunctionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: updatedMessages,
-          projectName 
+          projectName,
         }),
       });
 
