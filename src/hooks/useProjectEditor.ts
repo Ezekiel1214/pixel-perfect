@@ -69,8 +69,17 @@ export function useProjectEditor(projectId: string) {
 
   // Extract HTML from AI response
   const extractHtmlFromResponse = (text: string): string | null => {
-    const htmlMatch = text.match(/```html\n?([\s\S]*?)```/);
-    return htmlMatch ? htmlMatch[1].trim() : null;
+    const fencedHtmlMatch = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
+    if (fencedHtmlMatch?.[1]) {
+      return fencedHtmlMatch[1].trim();
+    }
+
+    const directHtmlStart = text.search(/<!doctype html|<html|<main|<section|<div|<header/i);
+    if (directHtmlStart !== -1) {
+      return text.slice(directHtmlStart).trim();
+    }
+
+    return null;
   };
 
   // Send message to AI
