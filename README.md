@@ -13,7 +13,47 @@ npm install
 npm run dev
 ```
 
-App runs on `http://localhost:5173` by default.
+If you extracted the project from a ZIP on Windows (for example, under a path like `C:\Users\surface\Downloads\pixel-perfect-main\pixel-perfect`), open a terminal in that folder before running the commands above.
+
+App runs on `http://localhost:8080` by default.
+
+### Dev proxy for Supabase Edge Functions
+
+In development, this repo proxies `http://localhost:8080/functions/v1/*` to `${VITE_SUPABASE_URL}/functions/v1/*` so browser requests avoid CORS issues.
+
+To use the proxy, call edge functions with a relative URL in development (for example `fetch("/functions/v1/chat")`) instead of calling `https://<project-ref>.supabase.co/functions/v1/...` directly.
+
+This also applies when testing locally over LAN/private IP hosts (for example `192.168.x.x` or `10.x.x.x`) so requests still stay same-origin to your local Vite server.
+
+In production, call the fully qualified Supabase function URL (`https://<project-ref>.supabase.co/functions/v1/...`) so CORS is handled by your deployed backend/origin setup.
+
+Quick verification:
+
+```bash
+curl -i \
+  -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
+  -H "Authorization: Bearer $VITE_SUPABASE_PUBLISHABLE_KEY" \
+  http://localhost:8080/functions/v1/chat
+```
+
+If a function expects JSON POST:
+
+```bash
+curl -i \
+  -H "Content-Type: application/json" \
+  -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
+  -H "Authorization: Bearer $VITE_SUPABASE_PUBLISHABLE_KEY" \
+  -d '{"ping":true}' \
+  http://localhost:8080/functions/v1/chat
+```
+
+### Optional: clear Browserslist warning
+
+If you see `caniuse-lite is outdated` during local builds, run:
+
+```bash
+npx update-browserslist-db@latest
+```
 
 ## Required environment variables
 
